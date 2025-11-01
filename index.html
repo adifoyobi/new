@@ -150,11 +150,11 @@
       saveFbclid(shortId, fbclid).then(success => {
         loading.style.display = 'none';
         if (success) {
-          button.href = https://t.me/KGSharksPoker_bot?start=${shortId};
+          button.href = `https://t.me/KGSharksPoker_bot?start=${shortId}`;
           console.log('Success: Bot link created');
           console.log('Telegram URL:', button.href);
         } else {
-          button.href = https://t.me/KGSharksPoker_bot?start=ERROR;
+          button.href = `https://t.me/KGSharksPoker_bot?start=ERROR`;
           console.log('Warning: Firebase failed, using fallback');
         }
       });
