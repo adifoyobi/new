@@ -104,9 +104,13 @@
     
     async function saveFbclid(shortId, fbclid) {
       try {
+        const now = Date.now();
+        const nowReadable = new Date().toISOString();
+        
         await set(ref(database, `fbclids/${shortId}`), {
           fbclid: fbclid,
-          timestamp: Date.now(),
+          timestamp: now,
+          timestamp_readable: nowReadable,
           url: window.location.href,
           referrer: document.referrer || 'direct'
         });
