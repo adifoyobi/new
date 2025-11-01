@@ -51,6 +51,11 @@
       transform: scale(1.05);
       box-shadow: 0 6px 16px rgba(0,0,0,0.4);
     }
+    .loading {
+      margin-top: 20px;
+      color: #666;
+      font-size: 14px;
+    }
   </style>
   <script>
   !function(f,b,e,v,n,t,s)
@@ -74,7 +79,47 @@
   </div>
   <h1>Официальный покер-рум в Кыргызстане</h1>
   <a id="telegramButton" class="telegram-button" href="https://t.me/KGSharksPoker_bot" target="_blank">Присоединиться в Telegram</a>
-  <script>
+  <div id="loading" class="loading" style="display:none;">Загрузка...</div>
+  
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+    import { getDatabase, ref, set } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
+    
+    const firebaseConfig = {
+      apiKey: "AIzaSyBBUjK-yQanZXKxLEW5HommyCA-94OfHz4",
+      authDomain: "poker-fbclid.firebaseapp.com",
+      databaseURL: "https://poker-fbclid-default-rtdb.firebaseio.com",
+      projectId: "poker-fbclid",
+      storageBucket: "poker-fbclid.firebasestorage.app",
+      messagingSenderId: "267457868513",
+      appId: "1:267457868513:web:8ad14b0bf0bfcb9aee7da0"
+    };
+    
+    const app = initializeApp(firebaseConfig);
+    const database = getDatabase(app);
+    
+    function generateShortId() {
+      return Math.random().toString(36).substring(2, 10);
+    }
+    
+    async function saveFbclid(shortId, fbclid) {
+      try {
+        await set(ref(database, `fbclids/${shortId}`), {
+          fbclid: fbclid,
+          timestamp: Date.now(),
+          url: window.location.href,
+          referrer: document.referrer || 'direct'
+        });
+        console.log('Firebase: Saved successfully');
+        console.log('Short ID:', shortId);
+        console.log('Full fbclid:', fbclid);
+        return true;
+      } catch (error) {
+        console.error('Firebase error:', error);
+        return false;
+      }
+    }
+    
     function getUrlParameter(name) {
       const urlParams = new URLSearchParams(window.location.search);
       return urlParams.get(name);
@@ -82,22 +127,39 @@
     
     const fbclid = getUrlParameter('fbclid');
     const button = document.getElementById('telegramButton');
+    const loading = document.getElementById('loading');
     const fullUrl = window.location.href;
     const timestamp = new Date().toISOString();
     
     if (fbclid) {
-      button.href = `https://t.me/KGSharksPoker_bot?start=${fbclid}_OK`;
+      loading.style.display = 'block';
+      const shortId = generateShortId();
       
       if (typeof fbq !== 'undefined') {
         fbq('trackCustom', 'ProkladkaWithFbclid', {
           fbclid: fbclid,
+          fbclid_short: shortId,
+          fbclid_length: fbclid.length,
           full_url: fullUrl,
           referrer: document.referrer || 'direct',
           timestamp: timestamp
         });
+        console.log('Facebook Pixel: ProkladkaWithFbclid sent');
       }
+      
+      saveFbclid(shortId, fbclid).then(success => {
+        loading.style.display = 'none';
+        if (success) {
+          button.href = https://t.me/KGSharksPoker_bot?start=${shortId};
+          console.log('Success: Bot link created');
+          console.log('Telegram URL:', button.href);
+        } else {
+          button.href = https://t.me/KGSharksPoker_bot?start=ERROR;
+          console.log('Warning: Firebase failed, using fallback');
+        }
+      });
     } else {
-      button.href = 'https://t.me/KGSharksPoker_bot?start=NOFBCLID_EMPTY';
+      button.href = 'https://t.me/KGSharksPoker_bot?start=NOFBCLID';
       
       if (typeof fbq !== 'undefined') {
         fbq('trackCustom', 'ProkladkaWithoutFbclid', {
@@ -106,12 +168,14 @@
           timestamp: timestamp,
           reason: 'fbclid_missing'
         });
+        console.log('Facebook Pixel: ProkladkaWithoutFbclid sent');
       }
     }
     
     button.addEventListener('click', function() {
       if (typeof fbq !== 'undefined') {
         fbq('track', 'Lead');
+        console.log('Facebook Pixel: Lead sent');
       }
     });
   </script>
