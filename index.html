@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Официальный покер-рум в Кыргызстане [DEBUG FIXED]</title>
+  <title>Официальный покер-рум в Кыргызстане</title>
   <style>
     body {
       margin: 0;
@@ -56,32 +56,6 @@
       color: #666;
       font-size: 14px;
     }
-    .debug-panel {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      background: #000;
-      color: #0f0;
-      padding: 10px;
-      font-family: monospace;
-      font-size: 11px;
-      max-height: 200px;
-      overflow-y: auto;
-      border-top: 2px solid #0f0;
-    }
-    .debug-log {
-      margin: 2px 0;
-    }
-    .debug-error {
-      color: #f00;
-    }
-    .debug-success {
-      color: #0f0;
-    }
-    .debug-warning {
-      color: #ff0;
-    }
   </style>
   <script>
   !function(f,b,e,v,n,t,s)
@@ -95,6 +69,9 @@
   fbq('init', '1127938902885369');
   fbq('track', 'PageView');
   </script>
+  <noscript><img height="1" width="1" style="display:none"
+  src="https://www.facebook.com/tr?id=1127938902885369&ev=PageView&noscript=1"
+  /></noscript>
 </head>
 <body>
   <div class="photo-circle">
@@ -104,29 +81,9 @@
   <a id="telegramButton" class="telegram-button" href="https://t.me/KGSharksPoker_bot" target="_blank" rel="noopener noreferrer">Присоединиться в Telegram</a>
   <div id="loading" class="loading" style="display:none;">Загрузка...</div>
   
-  <div class="debug-panel" id="debugPanel"></div>
-  
-  <script>
-    function debugLog(message, type = 'log') {
-      const panel = document.getElementById('debugPanel');
-      const time = new Date().toLocaleTimeString();
-      const logClass = type === 'error' ? 'debug-error' : 
-                       type === 'success' ? 'debug-success' : 
-                       type === 'warning' ? 'debug-warning' : '';
-      panel.innerHTML += `<div class="debug-log ${logClass}">[${time}] ${message}</div>`;
-      panel.scrollTop = panel.scrollHeight;
-      console.log(`[${time}] ${message}`);
-    }
-    
-    debugLog('=== PAGE LOADED ===', 'success');
-    debugLog('URL: ' + window.location.href);
-  </script>
-  
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
     import { getDatabase, ref, set, update } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
-    
-    debugLog('=== FIREBASE IMPORT SUCCESS ===', 'success');
     
     const firebaseConfig = {
       apiKey: "AIzaSyBBUjK-yQanZXKxLEW5HommyCA-94OfHz4",
@@ -138,43 +95,22 @@
       appId: "1:267457868513:web:8ad14b0bf0bfcb9aee7da0"
     };
     
-    debugLog('=== INITIALIZING FIREBASE ===');
-    
-    // ИСПРАВЛЕНИЕ: database НА ВЕРХНЕМ УРОВНЕ
-    let database;
-    
-    try {
-      const app = initializeApp(firebaseConfig);
-      database = getDatabase(app);  // Теперь доступен везде!
-      debugLog('Firebase initialized successfully', 'success');
-    } catch (error) {
-      debugLog('Firebase init ERROR: ' + error.message, 'error');
-    }
+    const app = initializeApp(firebaseConfig);
+    const database = getDatabase(app);
     
     function generateShortId() {
-      const id = Math.random().toString(36).substring(2, 10);
-      debugLog('Generated shortId: ' + id);
-      return id;
+      return Math.random().toString(36).substring(2, 10);
     }
     
+    // Сохранить первичную информацию о посещении
     async function saveFbclid(shortId, trackingId, paramType) {
-      debugLog('=== SAVING TO FIREBASE ===');
-      debugLog('shortId: ' + shortId);
-      debugLog('trackingId: ' + trackingId);
-      debugLog('paramType: ' + paramType);
-      
-      if (!database) {
-        debugLog('DATABASE NOT INITIALIZED!', 'error');
-        return false;
-      }
-      
       try {
         const now = Date.now();
         const nowReadable = new Date().toISOString();
         
         await set(ref(database, `fbclids/${shortId}`), {
-          fbclid: trackingId,
-          parameter_type: paramType,
+          fbclid: trackingId,  // Сохраняем ID (fbclid или brid)
+          parameter_type: paramType,  // Указываем тип параметра
           timestamp: now,
           timestamp_readable: nowReadable,
           url: window.location.href,
@@ -184,30 +120,28 @@
           screen_width: window.innerWidth,
           screen_height: window.innerHeight
         });
-        
-        debugLog('Firebase SAVE SUCCESS', 'success');
+        console.log('Firebase: Saved successfully');
+        console.log('Short ID:', shortId);
+        console.log('Tracking ID:', trackingId);
+        console.log('Parameter type:', paramType);
         return true;
       } catch (error) {
-        debugLog('Firebase SAVE ERROR: ' + error.message, 'error');
+        console.error('Firebase error:', error);
         return false;
       }
     }
     
+    // Отследить клик по кнопке и ссылку на бота
     async function trackButtonClick(shortId, telegramLink) {
-      debugLog('=== TRACKING BUTTON CLICK ===');
-      debugLog('shortId: ' + shortId);
-      debugLog('telegramLink: ' + telegramLink);
-      
-      if (!database) {
-        debugLog('DATABASE NOT INITIALIZED!', 'error');
-        return false;
-      }
-      
       try {
         const clickTime = Date.now();
         const clickTimeReadable = new Date().toISOString();
+        
+        // Извлекаем параметр start из ссылки
         const startMatch = telegramLink.match(/\?start=([^&]+)/);
         const startParameter = startMatch ? startMatch[1] : 'NO_START_PARAM';
+        
+        // Проверяем совпадает ли shortId с параметром start
         const linkMatches = (startParameter === shortId);
         
         await update(ref(database, `fbclids/${shortId}`), {
@@ -219,10 +153,14 @@
           link_matches: linkMatches
         });
         
-        debugLog('Button click tracked SUCCESS', 'success');
+        console.log('Button click tracked in Firebase');
+        console.log('Telegram link:', telegramLink);
+        console.log('Start parameter:', startParameter);
+        console.log('Link matches shortId:', linkMatches);
+        
         return true;
       } catch (error) {
-        debugLog('Button click track ERROR: ' + error.message, 'error');
+        console.error('Failed to track click:', error);
         return false;
       }
     }
@@ -232,41 +170,28 @@
       return urlParams.get(name);
     }
     
-    debugLog('=== CHECKING URL PARAMETERS ===');
-    
+    // ВАЖНО: Поддержка ОБОИХ параметров (fbclid и brid)
     const fbclid = getUrlParameter('fbclid');
     const brid = getUrlParameter('brid');
     
-    debugLog('fbclid: ' + (fbclid || 'NOT FOUND'));
-    debugLog('brid: ' + (brid || 'NOT FOUND'));
-    
+    // Используем любой из них
     const trackingId = fbclid || brid;
     const parameterType = fbclid ? 'fbclid' : (brid ? 'brid' : 'none');
-    
-    debugLog('trackingId: ' + (trackingId || 'NONE'));
-    debugLog('parameterType: ' + parameterType);
     
     const button = document.getElementById('telegramButton');
     const loading = document.getElementById('loading');
     const fullUrl = window.location.href;
     const timestamp = new Date().toISOString();
     
-    debugLog('=== BUTTON ELEMENT ===');
-    debugLog('Button found: ' + (button ? 'YES' : 'NO'));
-    debugLog('Initial button.href: ' + button.href);
+    console.log('Detected parameter type:', parameterType);
+    console.log('Tracking ID:', trackingId);
     
     let currentShortId = null;
     
     if (trackingId) {
-      debugLog('=== TRACKING ID FOUND - STARTING PROCESS ===', 'warning');
-      
       loading.style.display = 'block';
-      debugLog('Loading indicator shown');
-      
       const shortId = generateShortId();
       currentShortId = shortId;
-      
-      debugLog('currentShortId set to: ' + currentShortId);
       
       if (typeof fbq !== 'undefined') {
         fbq('trackCustom', 'ProkladkaWithFbclid', {
@@ -278,40 +203,23 @@
           referrer: document.referrer || 'direct',
           timestamp: timestamp
         });
-        debugLog('Facebook Pixel event sent', 'success');
-      } else {
-        debugLog('Facebook Pixel NOT FOUND', 'error');
+        console.log('Facebook Pixel: ProkladkaWithFbclid sent');
+        console.log('Parameter type:', parameterType);
       }
-      
-      debugLog('=== CALLING saveFbclid ===');
       
       saveFbclid(shortId, trackingId, parameterType).then(success => {
         loading.style.display = 'none';
-        debugLog('Loading indicator hidden');
-        
         if (success) {
-          const newHref = `https://t.me/KGSharksPoker_bot?start=${shortId}`;
-          button.href = newHref;
-          
-          debugLog('=== BUTTON HREF UPDATED ===', 'success');
-          debugLog('NEW href: ' + newHref);
-          debugLog('Current button.href: ' + button.href);
-          
-          setTimeout(() => {
-            debugLog('=== VERIFICATION (1 sec later) ===', 'warning');
-            debugLog('button.href is still: ' + button.href);
-            debugLog('currentShortId is still: ' + currentShortId);
-          }, 1000);
-          
+          button.href = `https://t.me/KGSharksPoker_bot?start=${shortId}`;
+          console.log('Success: Bot link created');
+          console.log('Telegram URL:', button.href);
         } else {
           button.href = `https://t.me/KGSharksPoker_bot?start=ERROR`;
-          debugLog('Firebase failed - using ERROR fallback', 'error');
+          console.log('Warning: Firebase failed, using fallback');
         }
       });
     } else {
-      debugLog('=== NO TRACKING ID - USING NOFBCLID ===', 'warning');
       button.href = 'https://t.me/KGSharksPoker_bot?start=NOFBCLID';
-      debugLog('Button href set to: ' + button.href);
       
       if (typeof fbq !== 'undefined') {
         fbq('trackCustom', 'ProkladkaWithoutFbclid', {
@@ -320,30 +228,24 @@
           timestamp: timestamp,
           reason: 'tracking_id_missing'
         });
-        debugLog('Facebook Pixel WITHOUT fbclid sent');
+        console.log('Facebook Pixel: ProkladkaWithoutFbclid sent');
       }
     }
     
-    button.addEventListener('click', function(event) {
-      debugLog('=== BUTTON CLICKED! ===', 'success');
-      debugLog('Event type: ' + event.type);
-      debugLog('Current href: ' + button.href);
-      debugLog('currentShortId: ' + (currentShortId || 'NONE'));
-      debugLog('Target: ' + button.target);
+    // Отслеживание клика по кнопке
+    button.addEventListener('click', function() {
+      console.log('Button clicked!');
+      console.log('Button href:', button.href);
       
       if (typeof fbq !== 'undefined') {
         fbq('track', 'Lead');
-        debugLog('Facebook Pixel Lead sent', 'success');
+        console.log('Facebook Pixel: Lead sent');
       }
       
       if (currentShortId) {
         trackButtonClick(currentShortId, button.href);
       }
-      
-      debugLog('Button click processed - navigating to: ' + button.href, 'success');
     });
-    
-    debugLog('=== INITIALIZATION COMPLETE ===', 'success');
   </script>
 </body>
 </html>
