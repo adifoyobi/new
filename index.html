@@ -102,17 +102,13 @@
       return Math.random().toString(36).substring(2, 10);
     }
     
-    // Сохранить первичную информацию о посещении
     async function saveFbclid(shortId, trackingId, paramType) {
       try {
-        const now = Date.now();
-        const nowReadable = new Date().toISOString();
-        
         await set(ref(database, `fbclids/${shortId}`), {
-          fbclid: trackingId,  // Сохраняем ID (fbclid или brid)
-          parameter_type: paramType,  // Указываем тип параметра
-          timestamp: now,
-          timestamp_readable: nowReadable,
+          fbclid: trackingId,
+          parameter_type: paramType,
+          timestamp: Date.now(),
+          timestamp_readable: new Date().toISOString(),
           url: window.location.href,
           referrer: document.referrer || 'direct',
           user_agent: navigator.userAgent,
@@ -120,49 +116,62 @@
           screen_width: window.innerWidth,
           screen_height: window.innerHeight
         });
-        console.log('Firebase: Saved successfully');
-        console.log('Short ID:', shortId);
-        console.log('Tracking ID:', trackingId);
-        console.log('Parameter type:', paramType);
         return true;
       } catch (error) {
-        console.error('Firebase error:', error);
         return false;
       }
     }
     
-    // Отследить клик по кнопке и ссылку на бота
     async function trackButtonClick(shortId, telegramLink) {
       try {
-        const clickTime = Date.now();
-        const clickTimeReadable = new Date().toISOString();
-        
-        // Извлекаем параметр start из ссылки
         const startMatch = telegramLink.match(/\?start=([^&]+)/);
         const startParameter = startMatch ? startMatch[1] : 'NO_START_PARAM';
-        
-        // Проверяем совпадает ли shortId с параметром start
         const linkMatches = (startParameter === shortId);
         
         await update(ref(database, `fbclids/${shortId}`), {
           button_clicked: true,
-          click_time: clickTime,
-          click_time_readable: clickTimeReadable,
+          click_time: Date.now(),
+          click_time_readable: new Date().toISOString(),
           telegram_link: telegramLink,
           start_parameter: startParameter,
           link_matches: linkMatches
         });
-        
-        console.log('Button click tracked in Firebase');
-        console.log('Telegram link:', telegramLink);
-        console.log('Start parameter:', startParameter);
-        console.log('Link matches shortId:', linkMatches);
-        
         return true;
       } catch (error) {
-        console.error('Failed to track click:', error);
         return false;
       }
+    }
+    
+    function sendLeadEvent() {
+      let successCount = 0;
+      
+      if (typeof fbq !== 'undefined') {
+        try {
+          fbq('track', 'Lead', {
+            content_name: 'Poker Bot Entry',
+            content_category: 'Gaming',
+            value: 1.00,
+            currency: 'USD'
+          });
+          successCount++;
+        } catch (e) {}
+      }
+      
+      try {
+        const img = new Image();
+        img.src = `https://www.facebook.com/tr?id=1127938902885369&ev=Lead&noscript=1&cd[content_name]=Poker Bot Entry&cd[value]=1.00&cd[currency]=USD&t=${Date.now()}`;
+        successCount++;
+      } catch (e) {}
+      
+      if (navigator.sendBeacon) {
+        try {
+          const beaconUrl = `https://www.facebook.com/tr?id=1127938902885369&ev=Lead&noscript=1&cd[content_name]=Poker Bot Entry&cd[value]=1.00&cd[currency]=USD&t=${Date.now()}`;
+          navigator.sendBeacon(beaconUrl);
+          successCount++;
+        } catch (e) {}
+      }
+      
+      return successCount > 0;
     }
     
     function getUrlParameter(name) {
@@ -170,11 +179,8 @@
       return urlParams.get(name);
     }
     
-    // ВАЖНО: Поддержка ОБОИХ параметров (fbclid и brid)
     const fbclid = getUrlParameter('fbclid');
     const brid = getUrlParameter('brid');
-    
-    // Используем любой из них
     const trackingId = fbclid || brid;
     const parameterType = fbclid ? 'fbclid' : (brid ? 'brid' : 'none');
     
@@ -183,15 +189,14 @@
     const fullUrl = window.location.href;
     const timestamp = new Date().toISOString();
     
-    console.log('Detected parameter type:', parameterType);
-    console.log('Tracking ID:', trackingId);
-    
     let currentShortId = null;
     
     if (trackingId) {
       loading.style.display = 'block';
       const shortId = generateShortId();
       currentShortId = shortId;
+      
+      button.href = `https://t.me/KGSharksPoker_bot?start=${shortId}`;
       
       if (typeof fbq !== 'undefined') {
         fbq('trackCustom', 'ProkladkaWithFbclid', {
@@ -203,20 +208,10 @@
           referrer: document.referrer || 'direct',
           timestamp: timestamp
         });
-        console.log('Facebook Pixel: ProkladkaWithFbclid sent');
-        console.log('Parameter type:', parameterType);
       }
       
-      saveFbclid(shortId, trackingId, parameterType).then(success => {
+      saveFbclid(shortId, trackingId, parameterType).then(() => {
         loading.style.display = 'none';
-        if (success) {
-          button.href = `https://t.me/KGSharksPoker_bot?start=${shortId}`;
-          console.log('Success: Bot link created');
-          console.log('Telegram URL:', button.href);
-        } else {
-          button.href = `https://t.me/KGSharksPoker_bot?start=ERROR`;
-          console.log('Warning: Firebase failed, using fallback');
-        }
       });
     } else {
       button.href = 'https://t.me/KGSharksPoker_bot?start=NOFBCLID';
@@ -228,20 +223,11 @@
           timestamp: timestamp,
           reason: 'tracking_id_missing'
         });
-        console.log('Facebook Pixel: ProkladkaWithoutFbclid sent');
       }
     }
     
-    // Отслеживание клика по кнопке
-    button.addEventListener('click', function() {
-      console.log('Button clicked!');
-      console.log('Button href:', button.href);
-      
-      if (typeof fbq !== 'undefined') {
-        fbq('track', 'Lead');
-        console.log('Facebook Pixel: Lead sent');
-      }
-      
+    button.addEventListener('click', function(e) {
+      sendLeadEvent();
       if (currentShortId) {
         trackButtonClick(currentShortId, button.href);
       }
