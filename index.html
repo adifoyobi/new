@@ -66,7 +66,13 @@
   t.src=v;s=b.getElementsByTagName(e)[0];
   s.parentNode.insertBefore(t,s)}(window, document,'script',
   'https://connect.facebook.net/en_US/fbevents.js');
-  fbq('init', '1127938902885369');
+
+  // ОТКЛЮЧАЕМ автоматические события (Lead, Purchase и т.д.)
+  // Оставляем только ручные события (PageView, кастомные)
+  fbq('init', '1127938902885369', {
+    autoConfig: false,  // отключить авто-детектирование событий
+    disablePushState: true  // отключить авто-трекинг навигации
+  });
   fbq('track', 'PageView');
   </script>
   <noscript><img height="1" width="1" style="display:none"
@@ -89,7 +95,7 @@
   /**
    * Получить Facebook Browser Pixel cookie (_fbp)
    * Facebook Pixel создает этот cookie автоматически
-   * Формат: fb.1.{timestamp}.{random_id}
+   * Формат: fb.2.{timestamp}.{random_id}
    */
   function getFacebookBrowserPixel() {
     const cookies = document.cookie.split('; ');
@@ -98,13 +104,23 @@
         return cookie.substring(5);
       }
     }
-    return null;
+
+    // Если _fbp не существует, создаем его
+    // Генерируем случайный ID браузера
+    const timestamp = Date.now();
+    const randomId = Math.random().toString().substring(2) + Math.random().toString().substring(2);
+    const fbp = `fb.2.${timestamp}.${randomId}`;
+
+    // Сохраняем cookie на 90 дней (стандарт Facebook)
+    document.cookie = `_fbp=${fbp}; max-age=7776000; path=/`;
+    return fbp;
   }
 
   /**
    * Получить Facebook Click cookie (_fbc)
    * Создается при клике по Facebook рекламе
    * Формат: fb.1.{timestamp}.{fbclid}
+   * ВАЖНО: Работает и для fbclid И для brid параметров!
    */
   function getFacebookClickCookie() {
     const cookies = document.cookie.split('; ');
@@ -114,11 +130,14 @@
       }
     }
 
-    // Если _fbc не существует, создаем его из fbclid
+    // Если _fbc не существует, создаем его из fbclid ИЛИ brid
     const urlParams = new URLSearchParams(window.location.search);
     const fbclid = urlParams.get('fbclid');
-    if (fbclid) {
-      const fbc = `fb.1.${Date.now()}.${fbclid}`;
+    const brid = urlParams.get('brid');
+    const trackingId = fbclid || brid;  // Берем любой доступный параметр
+
+    if (trackingId) {
+      const fbc = `fb.2.${Date.now()}.${trackingId}`;  // fb.2 для fbc (не fb.1!)
       // Сохраняем cookie на 90 дней (стандарт Facebook)
       document.cookie = `_fbc=${fbc}; max-age=7776000; path=/`;
       return fbc;
